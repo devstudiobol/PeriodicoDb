@@ -1,0 +1,26 @@
+version: '3.8'
+
+services:
+      api:
+        build:
+          context: .
+          dockerfile: Dockerfile
+        ports:
+          - "8000:8080"
+        environment:
+          - ASPNETCORE_ENVIRONMENT=Development
+          # Cadena de conexión para PostgreSQL (el host es el nombre del servicio 'db')
+          - ConnectionStrings__Connection=Host=db;Port=5432;Database=Periodico;Username=postgres;Password=${DB_PASSWORD}
+          - Jwt__Key=${JWT_KEY}
+          - CloudinarySettings__CloudName=${CLOUDINARY_NAME}
+          - CloudinarySettings__ApiKey=${CLOUDINARY_APIKEY}
+          - CloudinarySettings__ApiSecret=${CLOUDINARY_SECRET}
+        depends_on:
+          - db
+
+      db:
+        image: postgres:15-alpine  # <-- Imagen de PostgreSQL
+        environment:
+          - POSTGRES_PASSWORD=${DB_PASSWORD} # <-- Variable específica de Postgres
+        ports:
+          - "5432:5432"
