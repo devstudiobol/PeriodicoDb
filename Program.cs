@@ -15,23 +15,17 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 // --- CAMBIO A POSTGRESQL ---
-// Asegúrate de haber instalado: Npgsql.EntityFrameworkCore.PostgreSQL
 builder.Services.AddDbContext<DBconexion>(option =>
     option.UseNpgsql(builder.Configuration.GetConnectionString("Connection")));
 // ---------------------------
 
 // --- CONFIGURACIÓN DE CLOUDINARY ---
-
-// 1. Mapea la sección "CloudinarySettings" de appsettings.json a una clase
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
-// 2. Registra el cliente oficial de Cloudinary (del paquete NuGet) como Singleton
 builder.Services.AddSingleton(provider =>
 {
-    // Obtiene las opciones de configuración que acabamos de registrar
     var settings = provider.GetRequiredService<IOptions<CloudinarySettings>>().Value;
 
-    // Valida que las credenciales no estén vacías
     if (string.IsNullOrEmpty(settings.CloudName) ||
         string.IsNullOrEmpty(settings.ApiKey) ||
         string.IsNullOrEmpty(settings.ApiSecret))
@@ -39,30 +33,23 @@ builder.Services.AddSingleton(provider =>
         throw new InvalidOperationException("No se encontraron las credenciales de Cloudinary en la configuración.");
     }
 
-    // Crea la cuenta con las credenciales
     Account account = new Account(
         settings.CloudName,
         settings.ApiKey,
         settings.ApiSecret
     );
 
-    // Devuelve una instancia del cliente de Cloudinary
     return new Cloudinary(account);
 });
 
-// 3. Registra TU PROPIO servicio de fotos (IPhotoService)
 builder.Services.AddScoped<IPhotoService, PhotoService>();
-
-// --- FIN DE SECCIÓN DE CLOUDINARY ---
-
+// --- FIN DE CLOUDINARY ---
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
-
-//Habilitar CORS
+// Habilitar CORS
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("Cors", policy =>
@@ -87,9 +74,7 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-// --- IMPORTANTE: Permitir Swagger en Docker (aunque no sea 'Development' estricto)
-// O bien, asegúrate de pasar la variable de entorno en docker-compose.
+// --- SWAGGER ---
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -97,17 +82,26 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
-
-// --- ATENCIÓN AQUÍ ---
-// Asegúrate de que UseAuthentication() esté ANTES de UseAuthorization()
 app.UseAuthentication();
 app.UseAuthorization();
-// --------------------
-
 app.UseCors("Cors");
-
 app.MapControllers();
 app.MapGet("/", () => "API funcionando en Render");
 
+// --- MIGRACIONES AUTOMÁTICAS EN ARRANQUE ---
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<DBconexion>();
+    db.Database.Migrate();
+
+    // Opcional: Seed de datos iniciales
+    if (!db.Categorias.Any())
+    {
+        db.Categorias.Add(new Categoria { Nombre = "General", Activo = true });
+        db.SaveChanges();
+    }
+}
+
+// --- PUERTO RENDER ---
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Run($"http://*:{port}");
