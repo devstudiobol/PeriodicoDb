@@ -107,6 +107,7 @@ app.UseAuthorization();
 app.UseCors("Cors");
 
 app.MapControllers();
+app.MapGet("/", () => "API funcionando en Render");
 
 var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 app.Run($"http://*:{port}");
