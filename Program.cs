@@ -46,7 +46,8 @@ builder.Services.AddCors(options =>
 // ----------------------------
 // DATABASE
 // ----------------------------
-var connectionString = builder.Configuration.GetConnectionString("Connection");
+var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
+
 
 builder.Services.AddDbContext<DBconexion>(options =>
     options.UseNpgsql(connectionString));
