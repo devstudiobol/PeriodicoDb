@@ -1,4 +1,4 @@
-// --- A—ADIDOS PARA CLOUDINARY ---
+// --- A√ëADIDOS PARA CLOUDINARY ---
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -15,28 +15,28 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 // --- CAMBIO A POSTGRESQL ---
-// Aseg˙rate de haber instalado: Npgsql.EntityFrameworkCore.PostgreSQL
+// Aseg√∫rate de haber instalado: Npgsql.EntityFrameworkCore.PostgreSQL
 builder.Services.AddDbContext<DBconexion>(option =>
     option.UseNpgsql(builder.Configuration.GetConnectionString("Connection")));
 // ---------------------------
 
-// --- CONFIGURACI”N DE CLOUDINARY ---
+// --- CONFIGURACI√ìN DE CLOUDINARY ---
 
-// 1. Mapea la secciÛn "CloudinarySettings" de appsettings.json a una clase
+// 1. Mapea la secci√≥n "CloudinarySettings" de appsettings.json a una clase
 builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
 
 // 2. Registra el cliente oficial de Cloudinary (del paquete NuGet) como Singleton
 builder.Services.AddSingleton(provider =>
 {
-    // Obtiene las opciones de configuraciÛn que acabamos de registrar
+    // Obtiene las opciones de configuraci√≥n que acabamos de registrar
     var settings = provider.GetRequiredService<IOptions<CloudinarySettings>>().Value;
 
-    // Valida que las credenciales no estÈn vacÌas
+    // Valida que las credenciales no est√©n vac√≠as
     if (string.IsNullOrEmpty(settings.CloudName) ||
         string.IsNullOrEmpty(settings.ApiKey) ||
         string.IsNullOrEmpty(settings.ApiSecret))
     {
-        throw new InvalidOperationException("No se encontraron las credenciales de Cloudinary en la configuraciÛn.");
+        throw new InvalidOperationException("No se encontraron las credenciales de Cloudinary en la configuraci√≥n.");
     }
 
     // Crea la cuenta con las credenciales
@@ -53,7 +53,7 @@ builder.Services.AddSingleton(provider =>
 // 3. Registra TU PROPIO servicio de fotos (IPhotoService)
 builder.Services.AddScoped<IPhotoService, PhotoService>();
 
-// --- FIN DE SECCI”N DE CLOUDINARY ---
+// --- FIN DE SECCI√ìN DE CLOUDINARY ---
 
 
 builder.Services.AddControllers();
@@ -89,7 +89,7 @@ var app = builder.Build();
 
 // Configure the HTTP request pipeline.
 // --- IMPORTANTE: Permitir Swagger en Docker (aunque no sea 'Development' estricto)
-// O bien, aseg˙rate de pasar la variable de entorno en docker-compose.
+// O bien, aseg√∫rate de pasar la variable de entorno en docker-compose.
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -98,8 +98,8 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-// --- ATENCI”N AQUÕ ---
-// Aseg˙rate de que UseAuthentication() estÈ ANTES de UseAuthorization()
+// --- ATENCI√ìN AQU√ç ---
+// Aseg√∫rate de que UseAuthentication() est√© ANTES de UseAuthorization()
 app.UseAuthentication();
 app.UseAuthorization();
 // --------------------
@@ -108,6 +108,5 @@ app.UseCors("Cors");
 
 app.MapControllers();
 
-// --- CAMBIO CLAVE PARA DOCKER ---
-// Forzamos a la aplicaciÛn a escuchar en el puerto 8080 (el que expone el Dockerfile)
-app.Run("http://*:8080");
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+app.Run($"http://*:{port}");
