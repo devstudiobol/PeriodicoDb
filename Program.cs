@@ -94,33 +94,8 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // --- BUILD APP ---
 var app = builder.Build();
 
-// ----------------------------
-// APPLY MIGRATIONS & SEED
-// ----------------------------
-try
-{
-    using (var scope = app.Services.CreateScope())
-    {
-        var db = scope.ServiceProvider.GetRequiredService<DBconexion>();
-        db.Database.Migrate();
-
-        // Seed opcional: solo si no existen categorías
-        if (!db.Categorias.Any())
-        {
-            db.Categorias.Add(new Categoria
-            {
-                Nombre = "General",
-                Activo = true
-            });
-            db.SaveChanges();
-        }
-    }
-}
-catch (Exception ex)
-{
-    Console.WriteLine($"Error applying migrations: {ex.Message}");
-}
-
+try { using (var scope = app.Services.CreateScope()) { var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>(); if (dbContext.Database.IsRelational()) { dbContext.Database.Migrate(); } } } catch (Exception ex) { Console.WriteLine($"Error applying migrations: {ex.Message}"); }
+  
 // ----------------------------
 // PIPELINE
 // ----------------------------
