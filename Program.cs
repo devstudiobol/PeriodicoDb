@@ -1,4 +1,4 @@
-// --- AÑADIDOS PARA CLOUDINARY ---
+// --- USINGS ---
 using CloudinaryDotNet;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -8,19 +8,54 @@ using PeriodicoUpdate.Data;
 using PeriodicoUpdate.Models;
 using PeriodicoUpdate.Services;
 using System.Text;
-// ---------------------------------
 
+// --- BUILDER ---
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// ----------------------------
+// CONFIG PORT PARA RENDER
+// ----------------------------
+var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
 
-// --- CAMBIO A POSTGRESQL ---
-builder.Services.AddDbContext<DBconexion>(option =>
-    option.UseNpgsql(builder.Configuration.GetConnectionString("Connection")));
-// ---------------------------
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(int.Parse(port));
+});
 
-// --- CONFIGURACIÓN DE CLOUDINARY ---
-builder.Services.Configure<CloudinarySettings>(builder.Configuration.GetSection("CloudinarySettings"));
+// ----------------------------
+// SERVICES
+// ----------------------------
+builder.Services.AddControllers();
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
+// ----------------------------
+// CORS
+// ----------------------------
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policyBuilder =>
+    {
+        policyBuilder
+            .WithOrigins("*") // o tu frontend específico
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
+// ----------------------------
+// DATABASE
+// ----------------------------
+var connectionString = builder.Configuration.GetConnectionString("Connection");
+
+builder.Services.AddDbContext<DBconexion>(options =>
+    options.UseNpgsql(connectionString));
+
+// ----------------------------
+// CLOUDINARY
+// ----------------------------
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("CloudinarySettings"));
 
 builder.Services.AddSingleton(provider =>
 {
@@ -30,51 +65,65 @@ builder.Services.AddSingleton(provider =>
         string.IsNullOrEmpty(settings.ApiKey) ||
         string.IsNullOrEmpty(settings.ApiSecret))
     {
-        throw new InvalidOperationException("No se encontraron las credenciales de Cloudinary en la configuración.");
+        throw new InvalidOperationException("No se encontraron las credenciales de Cloudinary.");
     }
 
-    Account account = new Account(
-        settings.CloudName,
-        settings.ApiKey,
-        settings.ApiSecret
-    );
-
+    var account = new Account(settings.CloudName, settings.ApiKey, settings.ApiSecret);
     return new Cloudinary(account);
 });
 
 builder.Services.AddScoped<IPhotoService, PhotoService>();
-// --- FIN DE CLOUDINARY ---
 
-builder.Services.AddControllers();
-builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+// ----------------------------
+// JWT
+// ----------------------------
+var jwtKey = builder.Configuration["Jwt:Key"] ?? "default_dev_key_change_me";
 
-// Habilitar CORS
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("Cors", policy =>
-    {
-        policy.WithOrigins("*").AllowAnyHeader().AllowAnyMethod();
-    });
-});
-
-// JWT Authentication
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     .AddJwtBearer(options =>
     {
         options.TokenValidationParameters = new TokenValidationParameters
         {
             ValidateIssuerSigningKey = true,
-            IssuerSigningKey = new SymmetricSecurityKey(
-                Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"])),
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey)),
             ValidateIssuer = false,
             ValidateAudience = false
         };
     });
 
+// --- BUILD APP ---
 var app = builder.Build();
 
-// --- SWAGGER ---
+// ----------------------------
+// APPLY MIGRATIONS & SEED
+// ----------------------------
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<DBconexion>();
+        db.Database.Migrate();
+
+        // Seed opcional: solo si no existen categorías
+        if (!db.Categorias.Any())
+        {
+            db.Categorias.Add(new Categoria
+            {
+                Nombre = "General",
+                Activo = true
+            });
+            db.SaveChanges();
+        }
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error applying migrations: {ex.Message}");
+}
+
+// ----------------------------
+// PIPELINE
+// ----------------------------
 if (app.Environment.IsDevelopment())
 {
     app.UseSwagger();
@@ -82,26 +131,15 @@ if (app.Environment.IsDevelopment())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("AllowAll");
+
 app.UseAuthentication();
 app.UseAuthorization();
-app.UseCors("Cors");
+
 app.MapControllers();
-app.MapGet("/", () => "API funcionando en Render");
+app.MapGet("/", () => "API funcionando en Render 🚀");
 
-// --- MIGRACIONES AUTOMÁTICAS EN ARRANQUE ---
-using (var scope = app.Services.CreateScope())
-{
-    var db = scope.ServiceProvider.GetRequiredService<DBconexion>();
-    db.Database.Migrate();
-
-    // Opcional: Seed de datos iniciales
-    if (!db.Categorias.Any())
-    {
-        db.Categorias.Add(new Categoria { Nombre = "General", Activo = true });
-        db.SaveChanges();
-    }
-}
-
-// --- PUERTO RENDER ---
-var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
-app.Run($"http://*:{port}");
+// ----------------------------
+// RUN
+// ----------------------------
+app.Run();
