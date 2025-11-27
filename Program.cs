@@ -52,6 +52,7 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<DBconexion>(options =>
     options.UseNpgsql(connectionString));
 
+
 // ----------------------------
 // CLOUDINARY
 // ----------------------------
