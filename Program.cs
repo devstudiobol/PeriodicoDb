@@ -94,8 +94,22 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 // --- BUILD APP ---
 var app = builder.Build();
 
-try { using (var scope = app.Services.CreateScope()) { var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>(); if (dbContext.Database.IsRelational()) { dbContext.Database.Migrate(); } } } catch (Exception ex) { Console.WriteLine($"Error applying migrations: {ex.Message}"); }
-  
+// ----------------------------
+// APPLY MIGRATIONS AUTOMATICAS (TODAS LAS TABLAS)
+// ----------------------------
+try
+{
+    using (var scope = app.Services.CreateScope())
+    {
+        var db = scope.ServiceProvider.GetRequiredService<DBconexion>();
+        db.Database.Migrate(); // EF Core creará/migrará TODAS las tablas de tu DbContext
+    }
+}
+catch (Exception ex)
+{
+    Console.WriteLine($"Error applying migrations: {ex.Message}");
+}
+
 // ----------------------------
 // PIPELINE
 // ----------------------------
