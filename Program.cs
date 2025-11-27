@@ -98,7 +98,7 @@ try
 {
     using (var scope = app.Services.CreateScope())
     {
-        var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var dbContext = scope.ServiceProvider.GetRequiredService<DBconexion>();
         if (dbContext.Database.IsRelational())
         {
             dbContext.Database.Migrate();
@@ -109,6 +109,7 @@ catch (Exception ex)
 {
     Console.WriteLine($"Error applying migrations: {ex.Message}");
 }
+
 // ----------------------------
 // PIPELINE
 // ----------------------------
